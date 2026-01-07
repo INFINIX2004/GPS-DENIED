@@ -89,6 +89,10 @@ The dashboard is designed to receive structured JSON data from AeroVision at 5-1
 - npm or yarn
 - AeroVision system (optional - includes mock data)
 
+**📋 For detailed requirements, see:**
+- [`requirements.txt`](./requirements.txt) - Complete dependency list
+- [`SYSTEM_REQUIREMENTS.md`](./SYSTEM_REQUIREMENTS.md) - System and environment requirements
+
 ### Installation
 
 1. **Clone the repository**
@@ -104,14 +108,16 @@ The dashboard is designed to receive structured JSON data from AeroVision at 5-1
 
 3. **Configure connection** (optional)
    
-   Edit `src/app/config/aeroVisionConfig.ts`:
-   ```typescript
-   export const aeroVisionConfig = {
-     useMockData: false, // Set to false for real AeroVision
-     websocketUrl: 'ws://your-aerovision-host:8080/aerovision/stream',
-     apiUrl: 'http://your-aerovision-host:8080/aerovision/data',
-     // ... other settings
-   };
+   Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` and update AeroVision endpoints:
+   ```env
+   REACT_APP_USE_MOCK_DATA=false
+   REACT_APP_AEROVISION_WS_URL=ws://your-aerovision-host:8080/aerovision/stream
+   REACT_APP_AEROVISION_API_URL=http://your-aerovision-host:8080/aerovision/data
    ```
 
 4. **Start the dashboard**
@@ -209,16 +215,16 @@ Content-Type: application/json
 
 ### Docker Deployment
 
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "run", "preview"]
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Or build manually
+docker build -t aerovision-dashboard .
+docker run -p 3000:80 aerovision-dashboard
 ```
+
+See [`docker-compose.yml`](./docker-compose.yml) for complete deployment configuration.
 
 ### Environment Setup
 
