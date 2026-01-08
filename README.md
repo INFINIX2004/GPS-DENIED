@@ -1,6 +1,10 @@
-# AeroVision Dashboard (preview shown above pdf)
+# AeroVision Dashboard 
 
 A real-time surveillance dashboard for the AeroVision drone-based intelligent surveillance system. This dashboard displays live system intelligence, threat analysis, and behavioral predictions from the AeroVision computer vision pipeline.
+
+# PREVIEW
+
+[View full design](AEROVISION/dashboard.png)
 
 ## Features
 
