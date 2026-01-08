@@ -4,7 +4,7 @@ A real-time surveillance dashboard for the AeroVision drone-based intelligent su
 
 # PREVIEW
 
-[View full design](AEROVISION/dashboard.png)
+[View full design](AEROVISION/dashboard.pdf)
 
 ## Features
 
