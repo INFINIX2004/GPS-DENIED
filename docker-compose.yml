@@ -1,0 +1,103 @@
+# AeroVision Dashboard - Docker Compose Configuration
+version: '3.8'
+
+services:
+  # AeroVision Dashboard
+  aerovision-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aerovision-dashboard
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - aerovision-network
+    depends_on:
+      - aerovision-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # AeroVision Backend (placeholder - replace with actual backend)
+  aerovision-backend:
+    image: aerovision/backend:latest  # Replace with actual image
+    container_name: aerovision-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:password@postgres:5432/aerovision
+    restart: unless-stopped
+    networks:
+      - aerovision-network
+    depends_on:
+      - postgres
+      - redis
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: aerovision-postgres
+    environment:
+      - POSTGRES_DB=aerovision
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - aerovision-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d aerovision"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis for caching and real-time features
+  redis:
+    image: redis:7-alpine
+    container_name: aerovision-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - aerovision-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Load Balancer (optional)
+  nginx-lb:
+    image: nginx:alpine
+    container_name: aerovision-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    restart: unless-stopped
+    networks:
+      - aerovision-network
+    depends_on:
+      - aerovision-dashboard
+
+networks:
+  aerovision-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
