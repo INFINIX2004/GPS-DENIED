@@ -1,4 +1,6 @@
 import React from 'react';
+import { useErrorLogger } from '../services/errorLoggingService';
+import { validateAlerts } from '../utils/dataValidation';
 
 interface Alert {
   id: string;
@@ -13,7 +15,23 @@ interface AlertsPanelProps {
   recentAlerts: Alert[];
 }
 
-export function AlertsPanel({ alertLevel, recommendation, recentAlerts }: AlertsPanelProps) {
+export const AlertsPanel = React.memo(function AlertsPanel(props: AlertsPanelProps) {
+  const { logWarning } = useErrorLogger();
+
+  // Validate and sanitize alerts data
+  const validatedData = React.useMemo(() => {
+    try {
+      return validateAlerts(props);
+    } catch (error) {
+      logWarning('AlertsPanel', 'Invalid alerts data received, using defaults', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        receivedData: props 
+      });
+      return validateAlerts(null);
+    }
+  }, [props, logWarning]);
+
+  const { alertLevel, recommendation, recentAlerts } = validatedData;
   const getAlertLevelStyle = (level: string) => {
     switch (level) {
       case 'NORMAL': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
@@ -75,4 +93,4 @@ export function AlertsPanel({ alertLevel, recommendation, recentAlerts }: Alerts
       </div>
     </div>
   );
-}
+});

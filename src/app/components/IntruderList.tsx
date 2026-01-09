@@ -1,4 +1,6 @@
 import React from 'react';
+import { useErrorLogger } from '../services/errorLoggingService';
+import { validateIntruders } from '../utils/dataValidation';
 
 export interface Intruder {
   trackId: string;
@@ -14,7 +16,40 @@ interface IntruderListProps {
   onSelect: (id: string) => void;
 }
 
-export function IntruderList({ intruders, selectedId, onSelect }: IntruderListProps) {
+export const IntruderList = React.memo(function IntruderList({ intruders, selectedId, onSelect }: IntruderListProps) {
+  const { logWarning, logError } = useErrorLogger();
+
+  // Validate and sanitize intruders data
+  const validatedIntruders = React.useMemo(() => {
+    try {
+      return validateIntruders(intruders);
+    } catch (error) {
+      logWarning('IntruderList', 'Invalid intruders data received, using empty array', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        receivedData: intruders 
+      });
+      return [];
+    }
+  }, [intruders, logWarning]);
+
+  // Safe selection handler
+  const handleSelect = React.useCallback((id: string) => {
+    try {
+      if (validatedIntruders.find(intruder => intruder.trackId === id)) {
+        onSelect(id);
+      } else {
+        logWarning('IntruderList', 'Attempted to select non-existent intruder', { 
+          selectedId: id,
+          availableIds: validatedIntruders.map(i => i.trackId) 
+        });
+      }
+    } catch (error) {
+      logError('IntruderList', 'Error in intruder selection', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        selectedId: id 
+      });
+    }
+  }, [validatedIntruders, onSelect, logWarning, logError]);
   const getZoneStyle = (zone: string) => {
     switch (zone) {
       case 'PUBLIC': return 'text-blue-700 bg-blue-50 border-blue-200';
@@ -36,15 +71,32 @@ export function IntruderList({ intruders, selectedId, onSelect }: IntruderListPr
   };
 
   const formatTime = (seconds: number) => {
-    if (seconds < 60) return `${seconds}s`;
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}m ${secs}s`;
+    try {
+      if (typeof seconds !== 'number' || seconds < 0) {
+        return '0s';
+      }
+      if (seconds < 60) return `${Math.round(seconds)}s`;
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return `${mins}m ${secs}s`;
+    } catch (error) {
+      logWarning('IntruderList', 'Error formatting time', { seconds });
+      return '0s';
+    }
   };
 
-  const highestThreatId = intruders.length > 0 
-    ? intruders.reduce((max, intruder) => intruder.threatScore > max.threatScore ? intruder : max).trackId
-    : null;
+  const highestThreatId = React.useMemo(() => {
+    try {
+      return validatedIntruders.length > 0 
+        ? validatedIntruders.reduce((max, intruder) => 
+            intruder.threatScore > max.threatScore ? intruder : max
+          ).trackId
+        : null;
+    } catch (error) {
+      logWarning('IntruderList', 'Error finding highest threat', { intrudersCount: validatedIntruders.length });
+      return null;
+    }
+  }, [validatedIntruders, logWarning]);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full flex flex-col">
@@ -53,20 +105,20 @@ export function IntruderList({ intruders, selectedId, onSelect }: IntruderListPr
         <h2 className="text-gray-900">Active Intruders</h2>
       </div>
       
-      {intruders.length === 0 ? (
+      {validatedIntruders.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-gray-400">
           No active threats detected
         </div>
       ) : (
         <div className="space-y-3 overflow-y-auto flex-1">
-          {intruders.map((intruder) => {
+          {validatedIntruders.map((intruder) => {
             const isHighest = intruder.trackId === highestThreatId;
             const isSelected = intruder.trackId === selectedId;
             
             return (
               <div
                 key={intruder.trackId}
-                onClick={() => onSelect(intruder.trackId)}
+                onClick={() => handleSelect(intruder.trackId)}
                 className={`
                   rounded-lg p-4 cursor-pointer transition-all border-2
                   ${isHighest ? 'border-red-500 shadow-md' : 'border-gray-200'}
@@ -101,4 +153,4 @@ export function IntruderList({ intruders, selectedId, onSelect }: IntruderListPr
       )}
     </div>
   );
-}
+});

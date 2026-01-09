@@ -1,4 +1,6 @@
 import React from 'react';
+import { useErrorLogger } from '../services/errorLoggingService';
+import { validateSystemStatus } from '../utils/dataValidation';
 
 interface SystemStatusProps {
   powerMode: 'IDLE' | 'ACTIVE' | 'ALERT';
@@ -10,15 +12,31 @@ interface SystemStatusProps {
   timestamp: string;
 }
 
-export function SystemStatus({
-  powerMode,
-  powerConsumption,
-  batteryRemaining,
-  fps,
-  processingStatus,
-  cameraStatus,
-  timestamp
-}: SystemStatusProps) {
+export const SystemStatus = React.memo(function SystemStatus(props: SystemStatusProps) {
+  const { logWarning } = useErrorLogger();
+
+  // Validate and sanitize props
+  const validatedProps = React.useMemo(() => {
+    try {
+      return validateSystemStatus(props);
+    } catch (error) {
+      logWarning('SystemStatus', 'Invalid props received, using defaults', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        receivedProps: props 
+      });
+      return validateSystemStatus(null);
+    }
+  }, [props, logWarning]);
+
+  const {
+    powerMode,
+    powerConsumption,
+    batteryRemaining,
+    fps,
+    processingStatus,
+    cameraStatus,
+    timestamp
+  } = validatedProps;
   const getPowerModeColor = (mode: string) => {
     switch (mode) {
       case 'IDLE': return 'text-gray-500 bg-gray-50';
@@ -88,4 +106,4 @@ export function SystemStatus({
       </div>
     </div>
   );
-}
+});

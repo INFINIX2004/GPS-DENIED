@@ -1,4 +1,6 @@
 import React from 'react';
+import { useErrorLogger } from '../services/errorLoggingService';
+import { validateSingleThreatIntelligence } from '../utils/dataValidation';
 
 interface ThreatBreakdown {
   factor: string;
@@ -28,12 +30,55 @@ interface ThreatIntelligenceProps {
   prediction: Prediction;
 }
 
-export function ThreatIntelligence({
-  trackId,
-  threatBreakdown,
-  behavioral,
-  prediction
-}: ThreatIntelligenceProps) {
+export const ThreatIntelligence = React.memo(function ThreatIntelligence(props: ThreatIntelligenceProps) {
+  const { logWarning } = useErrorLogger();
+
+  // Validate and sanitize threat intelligence data
+  const validatedData = React.useMemo(() => {
+    try {
+      const validated = validateSingleThreatIntelligence({
+        threatBreakdown: props.threatBreakdown,
+        behavioral: props.behavioral,
+        prediction: props.prediction
+      });
+      
+      if (!validated) {
+        throw new Error('Validation returned null');
+      }
+      
+      return {
+        trackId: props.trackId || 'Unknown',
+        ...validated
+      };
+    } catch (error) {
+      logWarning('ThreatIntelligence', 'Invalid threat intelligence data, using defaults', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        trackId: props.trackId,
+        receivedData: props 
+      });
+      
+      // Return safe defaults
+      return {
+        trackId: props.trackId || 'Unknown',
+        threatBreakdown: [],
+        behavioral: {
+          loitering: false,
+          speedAnomaly: false,
+          trajectoryStability: 'Stable' as const,
+          trajectoryConfidence: 0
+        },
+        prediction: {
+          nearTerm: 'No prediction available',
+          mediumTerm: 'No prediction available',
+          farTerm: 'No prediction available',
+          confidence: 'Low' as const,
+          willEnterRestricted: false
+        }
+      };
+    }
+  }, [props, logWarning]);
+
+  const { trackId, threatBreakdown, behavioral, prediction } = validatedData;
   const getConfidenceStyle = (confidence: string) => {
     switch (confidence) {
       case 'High': return 'text-emerald-700 bg-emerald-50';
@@ -43,7 +88,17 @@ export function ThreatIntelligence({
     }
   };
 
-  const totalScore = threatBreakdown.reduce((sum, item) => sum + item.score, 0);
+  const totalScore = React.useMemo(() => {
+    try {
+      return threatBreakdown.reduce((sum, item) => {
+        const score = typeof item.score === 'number' ? item.score : 0;
+        return sum + score;
+      }, 0);
+    } catch (error) {
+      logWarning('ThreatIntelligence', 'Error calculating total score', { threatBreakdown });
+      return 0;
+    }
+  }, [threatBreakdown, logWarning]);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full overflow-y-auto">
@@ -160,4 +215,4 @@ export function ThreatIntelligence({
       </div>
     </div>
   );
-}
+});
