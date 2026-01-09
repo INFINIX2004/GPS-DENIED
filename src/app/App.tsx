@@ -1,143 +1,125 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { SystemStatus } from './components/SystemStatus';
 import { IntruderList, Intruder } from './components/IntruderList';
 import { ThreatIntelligence } from './components/ThreatIntelligence';
 import { AlertsPanel } from './components/AlertsPanel';
 import { VideoFeed } from './components/VideoFeed';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { 
+  SystemStatusFallback, 
+  IntruderListFallback, 
+  ThreatIntelligenceFallback,
+  AlertsPanelFallback,
+  VideoFeedFallback 
+} from './components/FallbackComponents';
 import { useAeroVision } from './hooks/useAeroVision';
-import { AeroVisionData, AeroVisionTrack } from './services/aeroVisionService';
+import { SystemState } from './types/systemState';
+import { validateSystemState, isEmptyState, getFallbackReason } from './utils/dataValidation';
+import { errorLoggingService, useErrorLogger } from './services/errorLoggingService';
 import aeroVisionConfig from './config/aeroVisionConfig';
-
-// Convert AeroVision data to dashboard format
-function convertAeroVisionData(data: AeroVisionData) {
-  // Convert system status
-  const systemStatus = {
-    powerMode: data.system.power_mode,
-    powerConsumption: data.system.power_w,
-    batteryRemaining: data.system.battery_minutes,
-    fps: data.system.fps,
-    processingStatus: 'Normal',
-    cameraStatus: data.system.camera_status === 'CONNECTED' ? 'Connected' as const : 'Lost' as const,
-    timestamp: data.system.timestamp
-  };
-
-  // Convert tracks to intruders
-  const intruders: Intruder[] = data.tracks.map(track => ({
-    trackId: `TRK-${track.id.toString().padStart(3, '0')}`,
-    zone: track.zone,
-    threatScore: track.threat_score,
-    threatLevel: track.threat_level,
-    timeSinceDetection: track.detection_time
-  }));
-
-  // Convert threat intelligence
-  const threatIntelligence: Record<string, any> = {};
-  data.tracks.forEach(track => {
-    const trackId = `TRK-${track.id.toString().padStart(3, '0')}`;
-    
-    // Determine trajectory stability based on confidence
-    let trajectoryStability: 'Stable' | 'Moderate' | 'Erratic';
-    if (track.behavior.trajectory_confidence >= 0.8) trajectoryStability = 'Stable';
-    else if (track.behavior.trajectory_confidence >= 0.6) trajectoryStability = 'Moderate';
-    else trajectoryStability = 'Erratic';
-
-    // Determine prediction confidence
-    let predictionConfidence: 'High' | 'Medium' | 'Low';
-    const avgConfidence = (track.prediction.near.confidence + track.prediction.medium.confidence + track.prediction.far.confidence) / 3;
-    if (avgConfidence >= 0.7) predictionConfidence = 'High';
-    else if (avgConfidence >= 0.5) predictionConfidence = 'Medium';
-    else predictionConfidence = 'Low';
-
-    threatIntelligence[trackId] = {
-      threatBreakdown: track.explanation.map(exp => ({
-        factor: exp.factor,
-        score: exp.points
-      })),
-      behavioral: {
-        loitering: track.behavior.loitering.active,
-        loiteringDuration: track.behavior.loitering.duration,
-        speedAnomaly: track.behavior.speed_anomaly,
-        trajectoryStability,
-        trajectoryConfidence: Math.round(track.behavior.trajectory_confidence * 100)
-      },
-      prediction: {
-        nearTerm: `Predicted to move to ${track.prediction.near.zone} zone`,
-        mediumTerm: `Expected to reach ${track.prediction.medium.zone} zone`,
-        farTerm: `Long-term trajectory toward ${track.prediction.far.zone} zone`,
-        confidence: predictionConfidence,
-        willEnterRestricted: track.prediction.far.zone === 'RESTRICTED' || track.prediction.far.zone === 'CRITICAL'
-      }
-    };
-  });
-
-  // Determine overall alert level
-  let alertLevel: 'NORMAL' | 'ELEVATED' | 'HIGH' | 'CRITICAL' = 'NORMAL';
-  const maxThreatScore = Math.max(...data.tracks.map(t => t.threat_score), 0);
-  if (maxThreatScore >= 80) alertLevel = 'CRITICAL';
-  else if (maxThreatScore >= 60) alertLevel = 'HIGH';
-  else if (maxThreatScore >= 40) alertLevel = 'ELEVATED';
-
-  // Generate recommendation
-  let recommendation = 'System operating normally - Continue monitoring';
-  if (alertLevel === 'CRITICAL') {
-    recommendation = 'IMMEDIATE ACTION REQUIRED - Deploy security response team';
-  } else if (alertLevel === 'HIGH') {
-    recommendation = 'Dispatch patrol unit - Monitor high-threat targets closely';
-  } else if (alertLevel === 'ELEVATED') {
-    recommendation = 'Increase monitoring frequency - Prepare response team';
-  }
-
-  // Convert alerts
-  const alerts = {
-    alertLevel,
-    recommendation,
-    recentAlerts: data.alerts.map((alert, index) => ({
-      id: `A${index + 1}`,
-      timestamp: alert.time,
-      message: alert.message,
-      type: alert.level === 'CRITICAL' ? 'critical' as const : 
-            alert.level === 'WARNING' ? 'warning' as const : 'info' as const
-    }))
-  };
-
-  return { systemStatus, intruders, threatIntelligence, alerts };
-}
 
 export default function App() {
   const [selectedIntruderId, setSelectedIntruderId] = useState<string | null>(null);
+  const { logError, logWarning, logInfo } = useErrorLogger();
   
-  // Use AeroVision hook with configuration
-  const { data: aeroVisionData, connectionStatus, error, refresh, isConnected } = useAeroVision({
+  // Use AeroVision hook with SystemStateManager enabled
+  const { 
+    systemState, 
+    connectionStatus, 
+    error, 
+    refresh, 
+    isConnected,
+    usingSystemStateManager 
+  } = useAeroVision({
     useMockData: aeroVisionConfig.useMockData,
-    mockUpdateInterval: aeroVisionConfig.mockUpdateInterval
+    mockUpdateInterval: aeroVisionConfig.mockUpdateInterval,
+    useSystemStateManager: true // Always use the new SystemStateManager
   });
 
-  const [dashboardData, setDashboardData] = useState(convertAeroVisionData(aeroVisionData));
-
-  // Convert AeroVision data to dashboard format whenever it updates
-  useEffect(() => {
-    const converted = convertAeroVisionData(aeroVisionData);
-    setDashboardData(converted);
-    
-    // Auto-select highest threat if enabled and no selection or if selected track no longer exists
-    if (aeroVisionConfig.autoSelectHighestThreat && converted.intruders.length > 0) {
-      const highestThreat = converted.intruders.reduce((max, intruder) => 
-        intruder.threatScore > max.threatScore ? intruder : max
-      );
-      
-      if (!selectedIntruderId || !converted.intruders.find(i => i.trackId === selectedIntruderId)) {
-        setSelectedIntruderId(highestThreat.trackId);
-      }
-    } else {
-      setSelectedIntruderId(null);
+  // Validate and sanitize system state data
+  const currentSystemState: SystemState = useMemo(() => {
+    try {
+      return validateSystemState(systemState);
+    } catch (validationError) {
+      logError('App', 'Failed to validate system state', { 
+        error: validationError instanceof Error ? validationError.message : 'Unknown error',
+        rawData: systemState 
+      });
+      return validateSystemState(null); // Return default state
     }
-  }, [aeroVisionData, selectedIntruderId]);
+  }, [systemState, logError]);
 
-  // Handle empty states
-  const selectedIntruder = dashboardData.intruders.find(i => i.trackId === selectedIntruderId);
-  const selectedIntelligence = selectedIntruderId 
-    ? dashboardData.threatIntelligence[selectedIntruderId]
-    : null;
+  // Get system state analysis for fallback decisions
+  const stateAnalysis = useMemo(() => isEmptyState(currentSystemState), [currentSystemState]);
+
+  // Log connection errors
+  useEffect(() => {
+    if (error) {
+      logError('App', `Connection error: ${error}`, { 
+        connectionStatus,
+        usingSystemStateManager 
+      });
+    }
+  }, [error, connectionStatus, usingSystemStateManager, logError]);
+
+  // Error handler for component errors
+  const handleComponentError = useCallback((error: Error, errorInfo: React.ErrorInfo, errorId: string) => {
+    errorLoggingService.logComponentError('App', error, errorInfo, errorId);
+  }, []);
+
+  // Auto-select highest threat intruder when enabled
+  useEffect(() => {
+    try {
+      if (aeroVisionConfig.autoSelectHighestThreat && currentSystemState.intruders.length > 0) {
+        const highestThreat = currentSystemState.intruders.reduce((max, intruder) => 
+          intruder.threatScore > max.threatScore ? intruder : max
+        );
+        
+        if (!selectedIntruderId || !currentSystemState.intruders.find(i => i.trackId === selectedIntruderId)) {
+          setSelectedIntruderId(highestThreat.trackId);
+        }
+      } else if (currentSystemState.intruders.length === 0) {
+        setSelectedIntruderId(null);
+      }
+    } catch (selectionError) {
+      logWarning('App', 'Error in intruder auto-selection', { 
+        error: selectionError instanceof Error ? selectionError.message : 'Unknown error',
+        intrudersCount: currentSystemState.intruders.length 
+      });
+    }
+  }, [currentSystemState.intruders, selectedIntruderId, logWarning]);
+
+  // Get selected intruder and threat intelligence with error handling
+  const selectedIntruder = useMemo(() => {
+    try {
+      return currentSystemState.intruders.find(i => i.trackId === selectedIntruderId) || null;
+    } catch (error) {
+      logWarning('App', 'Error finding selected intruder', { selectedIntruderId });
+      return null;
+    }
+  }, [currentSystemState.intruders, selectedIntruderId, logWarning]);
+
+  const selectedIntelligence = useMemo(() => {
+    try {
+      return selectedIntruderId ? currentSystemState.threatIntelligence[selectedIntruderId] || null : null;
+    } catch (error) {
+      logWarning('App', 'Error getting threat intelligence', { selectedIntruderId });
+      return null;
+    }
+  }, [selectedIntruderId, currentSystemState.threatIntelligence, logWarning]);
+
+  // Memoized handlers for better performance
+  const handleVideoStreamError = useCallback((error: Error) => {
+    logError('VideoFeed', `Stream error: ${error.message}`, { error: error.stack });
+  }, [logError]);
+
+  const handleVideoStreamLoad = useCallback(() => {
+    logInfo('VideoFeed', 'Video stream loaded successfully');
+  }, [logInfo]);
+
+  const handleIntruderSelect = useCallback((id: string) => {
+    setSelectedIntruderId(id);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
@@ -169,10 +151,10 @@ export default function App() {
               {/* Camera Status */}
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${
-                  aeroVisionData.system.camera_status === 'CONNECTED' ? 'bg-emerald-500' : 'bg-red-500'
+                  currentSystemState.systemStatus.cameraStatus === 'Connected' ? 'bg-emerald-500' : 'bg-red-500'
                 }`}></div>
                 <span className="text-xs text-gray-500">
-                  Camera {aeroVisionData.system.camera_status === 'CONNECTED' ? 'Online' : 'Offline'}
+                  Camera {currentSystemState.systemStatus.cameraStatus === 'Connected' ? 'Online' : 'Offline'}
                 </span>
               </div>
 
@@ -199,27 +181,56 @@ export default function App() {
 
       {/* System Status - Horizontal Top */}
       <div className="mb-4">
-        <SystemStatus {...dashboardData.systemStatus} />
+        <ErrorBoundary
+          componentName="SystemStatus"
+          onError={handleComponentError}
+          fallback={<SystemStatusFallback />}
+        >
+          <SystemStatus {...currentSystemState.systemStatus} />
+        </ErrorBoundary>
       </div>
 
       {/* Video and Threat Overview - Side by Side */}
       <div className="flex gap-4 mb-4">
         {/* Left - Video Feed (640x640) */}
         <div style={{ width: '640px', height: '640px', flexShrink: 0 }}>
-          <VideoFeed 
-            isLive={aeroVisionData.system.camera_status === 'CONNECTED'} 
-            resolution="1920x1080" 
-            latency={45} 
-          />
+          <ErrorBoundary
+            componentName="VideoFeed"
+            onError={handleComponentError}
+            fallback={
+              <VideoFeedFallback 
+                reason={getFallbackReason(currentSystemState, 'video')} 
+                onRetry={refresh}
+              />
+            }
+          >
+            <VideoFeed 
+              {...currentSystemState.videoStatus}
+              enableWebcam={true}
+              fallbackToPlaceholder={true}
+              onStreamError={handleVideoStreamError}
+              onStreamLoad={handleVideoStreamLoad}
+            />
+          </ErrorBoundary>
         </div>
 
         {/* Right - Threat Overview (Intruder List) */}
         <div style={{ flex: 1, height: '640px' }}>
-          <IntruderList
-            intruders={dashboardData.intruders}
-            selectedId={selectedIntruderId}
-            onSelect={setSelectedIntruderId}
-          />
+          <ErrorBoundary
+            componentName="IntruderList"
+            onError={handleComponentError}
+            fallback={
+              <IntruderListFallback 
+                reason={getFallbackReason(currentSystemState, 'intruders')} 
+              />
+            }
+          >
+            <IntruderList
+              intruders={currentSystemState.intruders}
+              selectedId={selectedIntruderId}
+              onSelect={handleIntruderSelect}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 
@@ -227,33 +238,43 @@ export default function App() {
       <div className="flex gap-4 mb-4">
         {/* Threat Intelligence */}
         <div style={{ width: '640px', flexShrink: 0 }}>
-          {selectedIntelligence && selectedIntruder ? (
-            <ThreatIntelligence
-              trackId={selectedIntruder.trackId}
-              threatBreakdown={selectedIntelligence.threatBreakdown}
-              behavioral={selectedIntelligence.behavioral}
-              prediction={selectedIntelligence.prediction}
-            />
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full flex items-center justify-center" style={{ minHeight: '400px' }}>
-              <div className="text-center">
-                <div className="text-gray-400 mb-2">
-                  {dashboardData.intruders.length === 0 ? 'No active threats detected' : 'Select an intruder to view threat intelligence'}
-                </div>
-                {aeroVisionData.system.camera_status !== 'CONNECTED' && (
-                  <div className="text-red-500 text-sm">Camera offline - Unable to detect threats</div>
-                )}
-                {connectionStatus !== 'connected' && (
-                  <div className="text-amber-500 text-sm">System disconnected - Attempting to reconnect</div>
-                )}
-              </div>
-            </div>
-          )}
+          <ErrorBoundary
+            componentName="ThreatIntelligence"
+            onError={handleComponentError}
+            fallback={
+              <ThreatIntelligenceFallback 
+                reason={getFallbackReason(currentSystemState, 'threat-intelligence')} 
+              />
+            }
+          >
+            {selectedIntelligence && selectedIntruder ? (
+              <ThreatIntelligence
+                trackId={selectedIntruder.trackId}
+                threatBreakdown={selectedIntelligence.threatBreakdown}
+                behavioral={selectedIntelligence.behavioral}
+                prediction={selectedIntelligence.prediction}
+              />
+            ) : (
+              <ThreatIntelligenceFallback 
+                reason={
+                  !stateAnalysis.isSystemOnline ? 'offline' :
+                  !stateAnalysis.hasIntruders ? 'no-selection' :
+                  'no-data'
+                }
+              />
+            )}
+          </ErrorBoundary>
         </div>
 
         {/* Alerts Panel */}
         <div style={{ flex: 1 }}>
-          <AlertsPanel {...dashboardData.alerts} />
+          <ErrorBoundary
+            componentName="AlertsPanel"
+            onError={handleComponentError}
+            fallback={<AlertsPanelFallback />}
+          >
+            <AlertsPanel {...currentSystemState.alerts} />
+          </ErrorBoundary>
         </div>
       </div>
     </div>
