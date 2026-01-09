@@ -1,30 +1,53 @@
 # AeroVision Dashboard Requirements
-# Node.js React/TypeScript Application
+# Production-Ready React/TypeScript Surveillance Dashboard
 
-# System Requirements
-Node.js >= 18.0.0
+# ============================================================================
+# SYSTEM REQUIREMENTS
+# ============================================================================
+Node.js >= 18.0.0 (LTS recommended)
 npm >= 9.0.0 (or yarn >= 1.22.0)
+TypeScript >= 4.9.0
+Git >= 2.20.0
 
-# Core Framework
+# Operating System Support:
+# - Windows 10/11
+# - macOS 10.15+
+# - Linux (Ubuntu 18.04+)
+
+# Hardware Requirements:
+# - Memory: 4GB RAM minimum, 8GB recommended
+# - Storage: 3GB free space for development
+# - Network: Stable internet for real-time data streaming
+
+# ============================================================================
+# CORE FRAMEWORK & BUILD TOOLS
+# ============================================================================
 React = 18.3.1
 React-DOM = 18.3.1
-TypeScript >= 4.9.0
-Vite = 6.4.1
+Vite = 6.4.1                    # Modern build tool with HMR
+@vitejs/plugin-react = 4.7.0   # React plugin for Vite
+TypeScript = ^4.9.0            # Type safety and development experience
 
-# Build Tools & Development
-@vitejs/plugin-react = 4.7.0
-@tailwindcss/vite = 4.1.12
-tailwindcss = 4.1.12
-@types/react = ^18.3.12
-@types/react-dom = ^18.3.1
+# ============================================================================
+# STYLING & UI FRAMEWORK
+# ============================================================================
+tailwindcss = 4.1.12           # Utility-first CSS framework
+@tailwindcss/vite = 4.1.12     # Tailwind CSS Vite integration
+postcss = ^8.4.0               # CSS post-processing
+tailwind-merge = 3.2.0         # Tailwind class merging utility
+class-variance-authority = 0.7.1 # Component variant management
+tw-animate-css = 1.3.8         # Animation utilities
 
-# UI Framework & Components
-@mui/material = 7.3.5
-@mui/icons-material = 7.3.5
-@emotion/react = 11.14.0
-@emotion/styled = 11.14.1
+# Material-UI Components
+@mui/material = 7.3.5          # Material Design components
+@mui/icons-material = 7.3.5    # Material Design icons
+@emotion/react = 11.14.0       # CSS-in-JS library for MUI
+@emotion/styled = 11.14.1      # Styled components for MUI
 
-# Radix UI Components
+# ============================================================================
+# RADIX UI COMPONENT SYSTEM
+# ============================================================================
+# Accessible, unstyled UI primitives for building design systems
 @radix-ui/react-accordion = 1.2.3
 @radix-ui/react-alert-dialog = 1.1.6
 @radix-ui/react-aspect-ratio = 1.1.2
@@ -48,77 +71,117 @@ tailwindcss = 4.1.12
 @radix-ui/react-slot = 1.1.2
 @radix-ui/react-switch = 1.1.3
 @radix-ui/react-tabs = 1.1.3
-@radix-ui/react-toggle-group = 1.1.2
 @radix-ui/react-toggle = 1.1.2
+@radix-ui/react-toggle-group = 1.1.2
 @radix-ui/react-tooltip = 1.1.8
 
-# Utility Libraries
-class-variance-authority = 0.7.1
-clsx = 2.1.1
-cmdk = 1.1.1
-date-fns = 3.6.0
-lucide-react = 0.487.0
-tailwind-merge = 3.2.0
+# ============================================================================
+# UTILITY LIBRARIES
+# ============================================================================
+clsx = 2.1.1                   # Conditional className utility
+cmdk = 1.1.1                   # Command palette component
+date-fns = 3.6.0               # Date utility library
+lucide-react = 0.487.0         # Icon library
+sonner = 2.0.3                 # Toast notifications
 
-# Form & Input Handling
-react-hook-form = 7.55.0
-input-otp = 1.4.2
-react-day-picker = 8.10.1
+# ============================================================================
+# FORM HANDLING & INPUT COMPONENTS
+# ============================================================================
+react-hook-form = 7.55.0       # Performant forms with easy validation
+input-otp = 1.4.2              # OTP input component
+react-day-picker = 8.10.1      # Date picker component
 
-# Animation & Motion
-motion = 12.23.24
-tw-animate-css = 1.3.8
+# ============================================================================
+# ANIMATION & MOTION
+# ============================================================================
+motion = 12.23.24               # Motion library for React
+embla-carousel-react = 8.6.0   # Carousel component
 
-# Charts & Data Visualization
-recharts = 2.15.2
+# ============================================================================
+# DATA VISUALIZATION
+# ============================================================================
+recharts = 2.15.2              # Composable charting library for React
 
-# Drag & Drop
-react-dnd = 16.0.1
-react-dnd-html5-backend = 16.0.1
+# ============================================================================
+# DRAG & DROP FUNCTIONALITY
+# ============================================================================
+react-dnd = 16.0.1             # Drag and drop for React
+react-dnd-html5-backend = 16.0.1 # HTML5 backend for react-dnd
 
-# Layout & UI Utilities
-embla-carousel-react = 8.6.0
-react-resizable-panels = 2.1.7
-react-responsive-masonry = 2.7.1
-react-slick = 0.31.0
-vaul = 1.1.2
+# ============================================================================
+# LAYOUT & UI UTILITIES
+# ============================================================================
+react-resizable-panels = 2.1.7 # Resizable panel components
+react-responsive-masonry = 2.7.1 # Responsive masonry layout
+react-slick = 0.31.0           # Carousel component
+vaul = 1.1.2                   # Drawer component
 
-# Theming & Styling
-next-themes = 0.4.6
+# ============================================================================
+# THEMING & STYLING UTILITIES
+# ============================================================================
+next-themes = 0.4.6            # Theme switching utility
 
-# Notifications
-sonner = 2.0.3
+# ============================================================================
+# POSITIONING & POPPER
+# ============================================================================
+@popperjs/core = 2.11.8        # Positioning engine
+react-popper = 2.3.0           # React wrapper for Popper.js
 
-# Popper & Positioning
-@popperjs/core = 2.11.8
-react-popper = 2.3.0
+# ============================================================================
+# DEVELOPMENT DEPENDENCIES
+# ============================================================================
+@types/react = ^18.3.12        # TypeScript definitions for React
+@types/react-dom = ^18.3.1     # TypeScript definitions for React DOM
 
-# Development Environment
-Operating System: Windows 10/11, macOS 10.15+, or Linux (Ubuntu 18.04+)
-Memory: 4GB RAM minimum, 8GB recommended
-Storage: 2GB free space for dependencies and build artifacts
-Browser: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
+# ============================================================================
+# TESTING FRAMEWORK
+# ============================================================================
+vitest = ^4.0.16               # Modern testing framework
+@vitest/ui = ^4.0.16           # UI for Vitest
+jsdom = ^27.4.0                # DOM implementation for testing
+@testing-library/react = ^16.3.1 # React testing utilities
+@testing-library/jest-dom = ^6.9.1 # Custom Jest matchers
+@testing-library/user-event = ^14.6.1 # User interaction testing
+fast-check = ^4.5.3            # Property-based testing library
+mock-socket = ^9.3.1           # WebSocket mocking for tests
 
-# Optional Tools
-Git >= 2.20.0
-VS Code (recommended IDE)
-Chrome DevTools
-Postman (for API testing)
+# ============================================================================
+# AEROVISION INTEGRATION REQUIREMENTS
+# ============================================================================
+# WebSocket Support: Required for real-time data streaming at 5-10 Hz
+# HTTP/HTTPS API: REST API fallback with automatic retry logic
+# Network Connectivity: Direct access to AeroVision Python backend
+# CORS Configuration: Properly configured cross-origin requests
+# Data Format: JSON with TypeScript interface compliance
+# Connection Reliability: Stable network for WebSocket connections
+# Bandwidth: Minimum 1 Mbps for real-time surveillance data
 
-# Production Requirements
-Web Server: Nginx, Apache, or Node.js server
-SSL Certificate (for HTTPS)
-Domain name (for production deployment)
-CDN (recommended for static assets)
+# ============================================================================
+# PRODUCTION DEPLOYMENT REQUIREMENTS
+# ============================================================================
+# Web Server: Nginx 1.18+, Apache 2.4+, or Node.js server
+# SSL Certificate: Required for HTTPS and WebSocket Secure (WSS)
+# Domain Name: For production deployment
+# CDN: Recommended for static asset delivery and global performance
+# Monitoring: Application performance monitoring and error tracking
+# Logging: Comprehensive logging for debugging and audit trails
 
-# AeroVision System Integration
-WebSocket support for real-time data
-HTTP/HTTPS API endpoint access
-Network connectivity to AeroVision backend
-CORS configuration for cross-origin requests
+# ============================================================================
+# SECURITY REQUIREMENTS
+# ============================================================================
+# HTTPS: Mandatory for production deployment
+# Environment Variables: For sensitive configuration management
+# Content Security Policy: Enhanced security headers
+# Input Validation: All data validated against TypeScript interfaces
+# Error Handling: Comprehensive error boundaries
+# Audit Logging: Security event tracking and monitoring
 
-# Security Requirements
-HTTPS enabled in production
-Environment variables for sensitive configuration
-Content Security Policy (CSP) headers
-Regular dependency updates for security patches
+# ============================================================================
+# PERFORMANCE REQUIREMENTS
+# ============================================================================
+# Memory: 2GB RAM minimum for production hosting
+# CPU: Multi-core processor for optimal performance
+# Storage: SSD recommended for faster builds and deployments
+# Caching: Browser and server-side caching enabled
+# Compression: Gzip/Brotli compression for reduced bandwidth
+# Code Splitting: Automatic code splitting for optimal loading

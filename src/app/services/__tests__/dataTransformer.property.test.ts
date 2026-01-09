@@ -148,7 +148,13 @@ describe('DataTransformer Property Tests', () => {
               battery_minutes: fc.oneof(fc.constant(-50), fc.constant(0), fc.constant(1000)),
               fps: fc.oneof(fc.constant(-10), fc.constant(0), fc.constant(200)),
               camera_status: fc.constantFrom('CONNECTED', 'DISCONNECTED'),
-              timestamp: fc.date({ min: new Date('2020-01-01'), max: new Date('2030-12-31') }).map(d => d.toISOString())
+              timestamp: fc.date({ min: new Date('2020-01-01'), max: new Date('2030-12-31') }).map(d => {
+                // Ensure valid date
+                if (isNaN(d.getTime())) {
+                  return new Date().toISOString();
+                }
+                return d.toISOString();
+              })
             }),
             tracks: fc.array(
               fc.record({

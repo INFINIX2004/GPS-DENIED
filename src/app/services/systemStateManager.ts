@@ -96,6 +96,12 @@ export class SystemStateManager implements ISystemStateManager {
    * Update system state with batching
    */
   updateState(newState: Partial<SystemState>): void {
+    // Handle null/undefined gracefully
+    if (!newState || typeof newState !== 'object') {
+      this.log('Invalid state update ignored', newState);
+      return;
+    }
+    
     this.log('Queuing state update', Object.keys(newState));
     
     // Track update for performance monitoring
