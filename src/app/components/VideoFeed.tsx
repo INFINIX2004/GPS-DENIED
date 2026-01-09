@@ -88,23 +88,16 @@ export const VideoFeed = React.memo(function VideoFeed(props: VideoFeedProps) {
     mjpeg: {
       protocol: 'mjpeg',
       connect: async (url?: string) => {
-        // MJPEG implementation placeholder
+        // MJPEG implementation for bridge server
         logInfo('VideoFeed', 'MJPEG connection requested', { url });
-        if (videoRef.current && url) {
-          videoRef.current.src = url;
-          return new Promise((resolve, reject) => {
-            if (videoRef.current) {
-              videoRef.current.onloadstart = () => resolve();
-              videoRef.current.onerror = () => reject(new Error('MJPEG stream failed'));
-            }
-          });
+        if (url) {
+          // For MJPEG, we just need to set the URL - the img element will handle it
+          return Promise.resolve();
         }
         throw new Error('MJPEG URL required');
       },
       disconnect: () => {
-        if (videoRef.current) {
-          videoRef.current.src = '';
-        }
+        logInfo('VideoFeed', 'MJPEG disconnect requested');
       },
       isSupported: () => true
     },
@@ -309,12 +302,13 @@ export const VideoFeed = React.memo(function VideoFeed(props: VideoFeedProps) {
 
     if ((source === 'mjpeg' || source === 'rtsp') && streamState.status === 'connected') {
       return (
-        <video
-          ref={videoRef}
+        <img
+          src={streamUrl}
           className="w-full h-full object-cover"
-          autoPlay
-          muted
-          playsInline
+          alt="Live video stream"
+          onError={() => {
+            setStreamState({ status: 'error', error: 'Stream connection lost' });
+          }}
         />
       );
     }
